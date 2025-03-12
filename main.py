@@ -1,71 +1,84 @@
 import win32com.client as win32
+import glob
 from functions import *
 
-outlook = win32.Dispatch('outlook.application')
-
-
-spis = fetch_companys()
-company_token = 0
+#outlook = win32.Dispatch('outlook.application')
 
 # 0BFUSCATION BY ИБЕТСКИЙ МАСТИФ
 def start():
-    print('Выберите компанию:') # :0
-    for i in range(len(spis)):
-        print(f'{i + 1}) {spis[i]}')
+    counter = 0
+    counter2 = 0
+    readed = load_csv()[1:]
+    attach_list = {}
+    not_finded = []
+    for i, row in enumerate(readed):
+        attach_list[row['Наименование']] = find_files(i + 2)
+        if attach_list[row['Наименование']]:
+            counter2+=1
+        else:
+            counter += 1
+            not_finded.append(row['Наименование'])
 
-    company_token = int(input()) - 1
+    if counter != 0:
+        print(f'Не найдено вложение для {counter} компаний:')
+        for i in not_finded:
+            print(i)
+        print("Письма указанным компаниям не будут отправленны.")
 
-    #тут еще защита от даунов должна быть, но потом
-    #TODO
+    while True:
+        print(f'Чтобы начать отправку {counter2} писем: введите yes\nЧтобы отменить отправку введите no')
+        res = input()
+        if res == 'yes':
+            send(attach_list, readed)
+            break
+        elif res == 'no':
+            print(':O')
+            break
+        else:
+            print('Неизвестная команда :O')
 
-    load(company_token)
+    print("Нажмите ENTER, чтобы закрыть программу :O")
+    input()
 
 
-def load(company_token):
-    emplo_list = load_employes(company_token, spis)
-    names = []
-    emails = []
+def send(attach_list, readed):
+    counter = 0
 
-    for i in emplo_list:
-        a = i.split('-')
-        names.append(a[1])
-        emails.append(a[0])
-
-    with open(f'{spis[company_token]}/body.txt', encoding='UTF-8') as file:
+    with open('settings/body.txt', encoding='UTF-8') as file:
         text = file.read()
 
-    with open(f'{spis[company_token]}/config.txt', encoding='UTF-8') as file:
+    with open('settings/config.txt', encoding='UTF-8') as file:
         config = file.read().split("\n") #:0
 
-    with open(f'{spis[company_token]}/them.txt', encoding='UTF-8') as file:
+    with open('settings/them.txt', encoding='UTF-8') as file:
         them = file.read()
-    lsd = ["company_name", "fio_first", "dolzhnost", "company_name_one", "fio_second", "dolzhnost2", "email", "tel"]
-    AUTOBOTS = 0
-    for key in lsd: # пусть так будет, :0
-        # :0
-        text = text.replace(key, config[AUTOBOTS])
-        AUTOBOTS += 1 # обфускация (опускация)
 
-    atach = ' '
-    atach=input("Введите абсолютный путь до файла вложения(или просто ENTER): ")
+    for i in range(len(readed)):
+        if attach_list[readed[i]['Наименование']]:
+            text_for_sending = text
+            text_for_sending.replace('__company_name__', readed[i]['Наименование'])
+            text_for_sending.replace('__fio_first__', readed[i]['ЛПР'])
+            text_for_sending.replace('__dolzhnost__', readed[i]['Должность'])
+            text_for_sending.replace('__company_name_one__', readed[i]['Наименование'])
+            text_for_sending.replace('__fio_second__', config[0])
+            text_for_sending.replace('__dolzhnost2__', config[1])
+            text_for_sending.replace('__email__', config[2])
+            text_for_sending.replace('__tel__', config[3])
+            #mail = outlook.CreateItem(0)
+            #mail.To = readed[i]['Почта']
+            #mail.Subject = them
+            #mail.Body = text_for_sending
+            #attachment = attach_list[readed[i]['Наименование']][0]
+            #mail.Attachments.Add(attachment)
+            #mail.Send()
+            counter+=1
 
-    for i in range(len(emplo_list)):
-        send(emails[i], text, them, atach)
-
-
-def send(email, body, them, atach):
-    print()
-
-    mail = outlook.CreateItem(0)
-    mail.To = email
-    mail.Subject = them
-    mail.Body = body
-    if atach != '':
-        attachment = atach
-        mail.Attachments.Add(attachment)
-
-    mail.Send()
+    print(f"Отправляются {counter} писем.")
 
 
-while True:
-    start()
+def find_files(company_token):
+    finded = glob.glob(f'CompanysAttach/{company_token}.*')
+    return finded
+
+
+start()
